@@ -76,22 +76,20 @@ def correct_bit_flip(qc, syndrome):
         qubit = SYNDROME_TABLE_X[syndrome]
         qc.x(qubit)
 
+def get_backend(name="qasm_simulator"):
+    return Aer.get_backend(name)
 
-
-def run_experiment(error_qubit, error_type, shots=1024):
-    qc = steane_encode()
-    inject_error(qc, error_qubit, error_type)
-
-    qc_syndrome = measure_bit_flip_syndrome(qc)
-
-    backend = Aer.get_backend('qasm_simulator')
-    compiled = transpile(qc_syndrome, backend)
+def execute_circuit(circuit, backend, shots=1024):
+    compiled = transpile(circuit, backend)
     job = backend.run(compiled, shots=shots)
+    return job.result()
 
-    result = job.result()
+
+
+def run_experiment(qc, backend, shots=1024):
+    result = execute_circuit(qc, backend, shots)
     counts = result.get_counts()
 
-    print(f"\nError {error_type} en qubit {error_qubit}")
     print("Resultados del síndrome:")
     for k, v in counts.items():
         print(f"Síndrome {k[::-1]} → {v} veces")
@@ -99,11 +97,20 @@ def run_experiment(error_qubit, error_type, shots=1024):
     return counts
 
 
+def run_steane_experiment(error_qubit, error_type, shots=1024, backend=None):
+    if backend is None:
+        backend = get_backend()
+
+    qc = steane_encode()
+    inject_error(qc, error_qubit, error_type)
+    qc_syndrome = measure_bit_flip_syndrome(qc)
+
+    print(f"\nError {error_type} en qubit {error_qubit}")
+    return run_experiment(qc_syndrome, backend, shots)
+
+
 if __name__ == "__main__":
-    # Error X en el qubit 3
-    run_experiment(error_qubit=3, error_type='X')
+    backend = get_backend("qasm_simulator")
 
-    # Error X en el qubit 6
-    run_experiment(error_qubit=6, error_type='X')
-
-
+    run_steane_experiment(3, "X", backend=backend)
+    run_steane_experiment(6, "X", backend=backend)
